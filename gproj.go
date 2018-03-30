@@ -58,6 +58,8 @@ func main() {
 	var countBillingEmpty int
 	var countBillingOk int
 	var countBillingOther int
+	var countOrgOk int
+	var countOrgOther int
 
 	report := func(project, account string) {
 		if account == "" {
@@ -75,7 +77,7 @@ func main() {
 	req := cloudresourcemanagerService.Projects.List()
 	if err := req.Pages(ctx, func(page *cloudresourcemanager.ListProjectsResponse) error {
 
-		log.Printf("projects: %d", len(page.Projects))
+		log.Printf("full project list: %d", len(page.Projects))
 
 		for _, project := range page.Projects {
 			pid := project.ProjectId
@@ -104,8 +106,11 @@ func main() {
 				}
 
 				if org != orgId {
+					countOrgOther++
 					continue // wrong org
 				}
+
+				countOrgOk++
 
 				proj := "projects/" + pid
 				info, err := billingService.Projects.GetBillingInfo(proj).Context(ctx).Do()
@@ -129,6 +134,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	log.Printf("projects for other orgs: %d\n", countOrgOther)
+	log.Printf("projects for specified org: %d\n", countOrgOk)
 	log.Printf("billing unassigned: %d\n", countBillingEmpty)
 	log.Printf("billing ok: %d\n", countBillingOk)
 	log.Printf("billing wrong: %d\n", countBillingOther)
