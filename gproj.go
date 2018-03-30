@@ -32,9 +32,11 @@ func main() {
 		log.Fatalf("usage: gproj org-id billing-account-id")
 	}
 
+	verbose := os.Getenv("VERBOSE") != ""
+
 	orgId := os.Args[1]
 	billingAccount := strings.ToUpper(os.Args[2])
-	log.Printf("organization=[%s] billing=[%s]\n", orgId, billingAccount)
+	log.Printf("organization=[%s] billing=[%s] VERBOSE=%v\n", orgId, billingAccount, verbose)
 
 	ctx := context.Background()
 
@@ -62,12 +64,11 @@ func main() {
 			countBillingEmpty++
 			return // skip empty account
 		}
-		account = strings.TrimPrefix(account, "billingAccounts/")
 		if account == billingAccount {
 			countBillingOk++
 			return
 		}
-		fmt.Printf("%s %s\n", project, account)
+		fmt.Printf("wrong billing: %s %s\n", project, account)
 		countBillingOther++
 	}
 
@@ -79,7 +80,9 @@ func main() {
 		for _, project := range page.Projects {
 			pid := project.ProjectId
 
-			log.Printf("verifying project: %s", pid)
+			if verbose {
+				log.Printf("verifying project: %s", pid)
+			}
 
 			reqBody := &cloudresourcemanager.GetAncestryRequest{}
 
@@ -89,16 +92,34 @@ func main() {
 			}
 
 			for _, anc := range resp.Ancestor {
-				if anc.ResourceId.Type != "organization" || anc.ResourceId.Id != orgId {
-					continue // skip wrong org
+
+				if anc.ResourceId.Type != "organization" {
+					continue // not under org
 				}
+
+				org := anc.ResourceId.Id
+
+				if verbose {
+					log.Printf("verifying project: %s org=[%s]", pid, org)
+				}
+
+				if org != orgId {
+					continue // wrong org
+				}
+
 				proj := "projects/" + pid
 				info, err := billingService.Projects.GetBillingInfo(proj).Context(ctx).Do()
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				report(pid, info.BillingAccountName)
+				account := strings.TrimPrefix(info.BillingAccountName, "billingAccounts/")
+
+				if verbose {
+					log.Printf("verifying project: %s org=[%s] billing=[%s]", pid, org, account)
+				}
+
+				report(pid, account)
 
 				break
 			}
