@@ -57,6 +57,20 @@ func main() {
 	var countBillingOk int
 	var countBillingOther int
 
+	report := func(project, account string) {
+		if account == "" {
+			countBillingEmpty++
+			return // skip empty account
+		}
+		account = strings.TrimPrefix(account, "billingAccounts/")
+		if account == billingAccount {
+			countBillingOk++
+			return
+		}
+		fmt.Printf("%s %s\n", project, account)
+		countBillingOther++
+	}
+
 	req := cloudresourcemanagerService.Projects.List()
 	if err := req.Pages(ctx, func(page *cloudresourcemanager.ListProjectsResponse) error {
 
@@ -83,21 +97,10 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				acc := info.BillingAccountName
-				// info.BillingAccountName = "billingAccounts/AAAAAA-BBBBBB-CCCCCC"
-				if acc == "" {
-					countBillingEmpty++
-					continue // skip empty account
-				}
-				if strings.HasPrefix(acc, "billingAccounts/") {
-					acc = acc[len("billingAccounts/"):]
-				}
-				if acc == billingAccount {
-					countBillingOk++
-					continue
-				}
-				fmt.Printf("%s %s\n", pid, acc)
-				countBillingOther++
+
+				report(pid, info.BillingAccountName)
+
+				break
 			}
 		}
 		return nil
