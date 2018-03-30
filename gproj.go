@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -27,12 +28,13 @@ import (
 
 func main() {
 
-	if len(os.Args) < 2 {
-		log.Fatalf("usage: gproj orgId")
+	if len(os.Args) < 3 {
+		log.Fatalf("usage: gproj org-id billing-account-id")
 	}
 
 	orgId := os.Args[1]
-	log.Printf("organization: %s\n", orgId)
+	billingAccount := strings.ToUpper(os.Args[2])
+	log.Printf("organization=[%s] billing=[%s]\n", orgId, billingAccount)
 
 	ctx := context.Background()
 
@@ -51,10 +53,19 @@ func main() {
 		log.Fatal(errBill)
 	}
 
+	var countBillingEmpty int
+	var countBillingOk int
+	var countBillingOther int
+
 	req := cloudresourcemanagerService.Projects.List()
 	if err := req.Pages(ctx, func(page *cloudresourcemanager.ListProjectsResponse) error {
+
+		log.Printf("projects: %d", len(page.Projects))
+
 		for _, project := range page.Projects {
 			pid := project.ProjectId
+
+			log.Printf("verifying project: %s", pid)
 
 			reqBody := &cloudresourcemanager.GetAncestryRequest{}
 
@@ -72,14 +83,29 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				if info.BillingAccountName == "" {
+				acc := info.BillingAccountName
+				// info.BillingAccountName = "billingAccounts/AAAAAA-BBBBBB-CCCCCC"
+				if acc == "" {
+					countBillingEmpty++
 					continue // skip empty account
 				}
-				fmt.Printf("%s %s\n", pid, info.BillingAccountName)
+				if strings.HasPrefix(acc, "billingAccounts/") {
+					acc = acc[len("billingAccounts/"):]
+				}
+				if acc == billingAccount {
+					countBillingOk++
+					continue
+				}
+				fmt.Printf("%s %s\n", pid, acc)
+				countBillingOther++
 			}
 		}
 		return nil
 	}); err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf("billing unassigned: %d\n", countBillingEmpty)
+	log.Printf("billing ok: %d\n", countBillingOk)
+	log.Printf("billing wrong: %d\n", countBillingOther)
 }

@@ -13,5 +13,5 @@ Install
 Usage
 =====
 
-    gproj <orgId>
+    gproj org-id billing-account-id
 	    
