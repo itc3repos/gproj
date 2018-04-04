@@ -121,6 +121,7 @@ func main() {
 			}
 
 			account := strings.TrimPrefix(info.BillingAccountName, "billingAccounts/")
+			account = strings.ToUpper(account)
 
 			if verbose {
 				log.Printf("verifying project: %s org=[%s] billing=[%s]", pid, org, account)
