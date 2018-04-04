@@ -74,64 +74,62 @@ func main() {
 		countBillingOther++
 	}
 
-	req := cloudresourcemanagerService.Projects.List()
-	if err := req.Pages(ctx, func(page *cloudresourcemanager.ListProjectsResponse) error {
+	respProj, errProj := cloudresourcemanagerService.Projects.List().Context(ctx).Do()
+	if errProj != nil {
+		log.Fatal(err)
+	}
 
-		log.Printf("full project list: %d", len(page.Projects))
+	log.Printf("full project list: %d", len(respProj.Projects))
 
-		for _, project := range page.Projects {
-			pid := project.ProjectId
+	for _, project := range respProj.Projects {
+		pid := project.ProjectId
 
-			if verbose {
-				log.Printf("verifying project: %s", pid)
+		if verbose {
+			log.Printf("verifying project: %s", pid)
+		}
+
+		reqBody := &cloudresourcemanager.GetAncestryRequest{}
+
+		resp, err := cloudresourcemanagerService.Projects.GetAncestry(pid, reqBody).Context(ctx).Do()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, anc := range resp.Ancestor {
+
+			if anc.ResourceId.Type != "organization" {
+				continue // not under org
 			}
 
-			reqBody := &cloudresourcemanager.GetAncestryRequest{}
+			org := anc.ResourceId.Id
 
-			resp, err := cloudresourcemanagerService.Projects.GetAncestry(pid, reqBody).Context(ctx).Do()
+			if verbose {
+				log.Printf("verifying project: %s org=[%s]", pid, org)
+			}
+
+			if org != orgId {
+				countOrgOther++
+				continue // wrong org
+			}
+
+			countOrgOk++
+
+			proj := "projects/" + pid
+			info, err := billingService.Projects.GetBillingInfo(proj).Context(ctx).Do()
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			for _, anc := range resp.Ancestor {
+			account := strings.TrimPrefix(info.BillingAccountName, "billingAccounts/")
 
-				if anc.ResourceId.Type != "organization" {
-					continue // not under org
-				}
-
-				org := anc.ResourceId.Id
-
-				if verbose {
-					log.Printf("verifying project: %s org=[%s]", pid, org)
-				}
-
-				if org != orgId {
-					countOrgOther++
-					continue // wrong org
-				}
-
-				countOrgOk++
-
-				proj := "projects/" + pid
-				info, err := billingService.Projects.GetBillingInfo(proj).Context(ctx).Do()
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				account := strings.TrimPrefix(info.BillingAccountName, "billingAccounts/")
-
-				if verbose {
-					log.Printf("verifying project: %s org=[%s] billing=[%s]", pid, org, account)
-				}
-
-				report(pid, account)
-
-				break
+			if verbose {
+				log.Printf("verifying project: %s org=[%s] billing=[%s]", pid, org, account)
 			}
+
+			report(pid, account)
+
+			break
 		}
-		return nil
-	}); err != nil {
-		log.Fatal(err)
 	}
 
 	log.Printf("projects for other orgs: %d\n", countOrgOther)
