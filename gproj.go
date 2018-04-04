@@ -79,13 +79,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("full project list: %d", len(respProj.Projects))
+	countProjects := len(respProj.Projects)
 
-	for _, project := range respProj.Projects {
+	log.Printf("full project list: %d", countProjects)
+
+	for i, project := range respProj.Projects {
 		pid := project.ProjectId
 
+		p := fmt.Sprintf("verifying project %2d/%2d: %s", i+1, countProjects, pid)
+
 		if verbose {
-			log.Printf("verifying project: %s", pid)
+			log.Print(p)
 		}
 
 		reqBody := &cloudresourcemanager.GetAncestryRequest{}
@@ -104,7 +108,7 @@ func main() {
 			org := anc.ResourceId.Id
 
 			if verbose {
-				log.Printf("verifying project: %s org=[%s]", pid, org)
+				log.Printf("%s org=[%s]", p, org)
 			}
 
 			if org != orgId {
@@ -124,7 +128,7 @@ func main() {
 			account = strings.ToUpper(account)
 
 			if verbose {
-				log.Printf("verifying project: %s org=[%s] billing=[%s]", pid, org, account)
+				log.Printf("%s org=[%s] billing=[%s]", p, org, account)
 			}
 
 			report(pid, account)
@@ -133,9 +137,10 @@ func main() {
 		}
 	}
 
-	log.Printf("projects for other orgs: %d\n", countOrgOther)
-	log.Printf("projects for specified org: %d\n", countOrgOk)
-	log.Printf("billing unassigned: %d\n", countBillingEmpty)
-	log.Printf("billing ok: %d\n", countBillingOk)
-	log.Printf("billing wrong: %d\n", countBillingOther)
+	log.Printf("full project list:            %2d", countProjects)
+	log.Printf("  projects for other orgs:    %2d\n", countOrgOther)
+	log.Printf("  projects for specified org: %2d  org=[%s]\n", countOrgOk, orgId)
+	log.Printf("    billing unassigned:       %2d\n", countBillingEmpty)
+	log.Printf("    billing ok:               %2d  billing=[%s]\n", countBillingOk, billingAccount)
+	log.Printf("    billing wrong:            %2d\n", countBillingOther)
 }
