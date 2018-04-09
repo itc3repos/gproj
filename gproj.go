@@ -81,11 +81,7 @@ func main() {
 
 	countProjects := len(respProj.Projects)
 
-	displayFullCount := func() {
-		log.Printf("full project list:            %2d", countProjects)
-	}
-
-	displayFullCount()
+	log.Printf("full project list: %2d\n", countProjects)
 
 	for i, project := range respProj.Projects {
 		pid := project.ProjectId
@@ -141,9 +137,7 @@ func main() {
 		}
 	}
 
-	if verbose {
-		displayFullCount()
-	}
+	log.Printf("full project list:            %2d\n", countProjects)
 	log.Printf("  projects for other orgs:    %2d\n", countOrgOther)
 	log.Printf("  projects for specified org: %2d  org=[%s]\n", countOrgOk, orgId)
 	log.Printf("    billing unassigned:       %2d\n", countBillingEmpty)
